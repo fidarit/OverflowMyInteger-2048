@@ -20,25 +20,25 @@ public class GameController : MonoBehaviour
         if (isMoving)
             return;
 
-        var x = Mathf.RoundToInt(Input.GetAxis("Horizontal"));
-        var y = Mathf.RoundToInt(Input.GetAxis("Vertical"));
+        var x = Input.GetAxis("Horizontal");
+        var y = Input.GetAxis("Vertical");
 
-        if (x == y)
+        var vector = new Vector2(x, y);
+        var intVector = Vector2Int.RoundToInt(vector.normalized);
+
+        if (Mathf.Abs(intVector.magnitude - 1f) > 0.1f)
             return;
 
-        if (x != 0 && y != 0)
-            return;
-
-        StartCoroutine(Move(new Vector2Int(x, y)));
+        StartCoroutine(Move(intVector));
     }
 
     private IEnumerator Move(Vector2Int dir)
     {
         isMoving = true;
 
-        CubeController.MoveAll(dir);
+        CubeController.MoveAll(dir * Mathf.CeilToInt(fieldSize.magnitude * 2f));
 
-        while (isMoving)
+        for (int i = 0; i < 4; i++)
         {
             yield return new WaitForSeconds(0.25f);
 
@@ -58,8 +58,9 @@ public class GameController : MonoBehaviour
         if (CubeController.AllCubes.Count >= maxCountGlobal)
             return;
 
-        int minCount = 1;
-        int maxCount = Mathf.Max(minCount + 1, (maxCountGlobal - CubeController.AllCubes.Count) / 3);
+        int availableCount = maxCountGlobal - CubeController.AllCubes.Count;
+        int minCount = Mathf.Max(1, availableCount / 12);
+        int maxCount = Mathf.Max(minCount + 1, availableCount / 3);
 
         int count = Random.Range(minCount, maxCount);
 
@@ -81,25 +82,17 @@ public class GameController : MonoBehaviour
             }
         }
 
-        var busyPoints = CubeController.AllCubes.Select(t => RoundVectorToHalf(t.transform.position));
-        var availablePoints = allPoints.Except(busyPoints);
+        var busyPoints = CubeController.AllCubes.Select(t => t.transform.position.RoundToHalf());
+        var availablePoints = allPoints
+            .Except(busyPoints)
+            .OrderByDescending(t => busyPoints.Min(x => (float?)Vector3.Distance(t, x)) ?? Random.value)
+            .Take(count * 2)
+            .Randomize()
+            .Take(count);
 
-        foreach (var point in Randomize(availablePoints).Take(count))
+        foreach (var point in availablePoints)
         {
             Instantiate(prefab, point, Quaternion.identity);
         }
-    }
-
-    private static Vector3 RoundVectorToHalf(Vector3 input, float y = 0)
-    {
-        var x = 0.5f * Mathf.Round(input.x * 2);
-        var z = 0.5f * Mathf.Round(input.z * 2);
-
-        return new Vector3(x, y, z);
-    }
-
-    private static IEnumerable<T> Randomize<T>(IEnumerable<T> input)
-    {
-        return input.OrderBy(t => Random.Range(short.MinValue, short.MaxValue));
     }
 }

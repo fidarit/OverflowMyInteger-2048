@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -60,14 +61,33 @@ public class CubeController : MonoBehaviour
         return $"{number}{suffixes[suffixIndex]}";
     }
 
-    public static void MoveAll(Vector2Int dir)
+    public static void MoveAll(Vector2Int impulse)
     {
-        AllCubes.ForEach(t => t.Move(dir));
+        AllCubes.ForEach(t => t.StartCoroutine(t.Move(impulse)));
     }
 
-    public void Move(Vector2Int dir)
+    private IEnumerator Move(Vector2Int impulse)
     {
+        if (impulse.x != 0)
+            Rigidbody.constraints = RigidbodyConstraints.FreezeAll & ~RigidbodyConstraints.FreezePositionX;
 
+        else if(impulse.y != 0)
+            Rigidbody.constraints = RigidbodyConstraints.FreezeAll & ~RigidbodyConstraints.FreezePositionZ;
+
+        Rigidbody.velocity = Vector3.right * impulse.x + Vector3.forward * impulse.y;
+
+        for (int i = 0; i < 10; i++)
+        {
+            yield return new WaitForSeconds(0.1f);
+
+            if (Rigidbody.IsSleeping())
+                break;
+        }
+
+        transform.position = transform.position.RoundToHalf();
+
+        Rigidbody.Sleep();
+        Rigidbody.constraints = RigidbodyConstraints.FreezeAll;
     }
 
     public void Destroy()
